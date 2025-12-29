@@ -1,6 +1,10 @@
 import streamlit as st
 import pandas as pd
-import joblib
+try:
+    import joblib
+except ModuleNotFoundError:
+    import sklearn.externals.joblib as joblib
+
 
 from MLModelPipeline import combined_ml_safety_decision
 
