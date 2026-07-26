@@ -215,7 +215,7 @@ with col_g1:
             </p>
         </div>
         """, unsafe_allow_html=True)
-    elif ensemble_risk >= 25.0:
+    elif ensemble_risk >= 20.0:
         st.markdown(f"""
         <div class="status-card-warning">
             <h2 style="color: #d29922; margin: 0;">⚠️ WARNING: ELEVATED RISK</h2>
@@ -254,13 +254,13 @@ with col_g2:
         number = {'suffix': "%", 'font': {'color': "#f85149" if is_unsafe else "#3fb950"}},
         gauge = {
             'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "#30363d"},
-            'bar': {'color': "#f85149" if is_unsafe else ("#d29922" if ensemble_risk >= 25 else "#2ea043")},
+            'bar': {'color': "#f85149" if is_unsafe else ("#d29922" if ensemble_risk >= 20 else "#2ea043")},
             'bgcolor': "#161b22",
             'borderwidth': 1,
             'bordercolor': "#30363d",
             'steps': [
-                {'range': [0, 25], 'color': 'rgba(46, 160, 67, 0.2)'},
-                {'range': [25, 45], 'color': 'rgba(210, 153, 34, 0.2)'},
+                {'range': [0, 20], 'color': 'rgba(46, 160, 67, 0.2)'},
+                {'range': [20, 45], 'color': 'rgba(210, 153, 34, 0.2)'},
                 {'range': [45, 100], 'color': 'rgba(248, 81, 73, 0.2)'}
             ]
         }
@@ -289,7 +289,7 @@ for name, prob, col in models_info:
         st.progress(prob)
         if prob >= 0.45:
             st.error(f"Risk Probability: **{prob_pct:.1f}%** (Flags Hazard)")
-        elif prob >= 0.25:
+        elif prob >= 0.20:
             st.warning(f"Risk Probability: **{prob_pct:.1f}%** (Caution)")
         else:
             st.success(f"Risk Probability: **{prob_pct:.1f}%** (Safe)")
@@ -309,16 +309,26 @@ edges = [("A", "B"), ("B", "C"), ("C", "D"), ("B", "E"), ("D", "F"), ("E", "F")]
 G.add_nodes_from(tunnels)
 G.add_edges_from(edges)
 
-# Calculate GNN Risk Propagation Scores
+# Base local risk values
 local_risk = {"A": 10.0, "B": 15.0, "C": 12.0, "D": 8.0, "E": 9.0, "F": 7.0}
 local_risk[tunnel_key] = ensemble_risk
 
+# GNN Message Passing with neighbor hazard spillover
 gnn_propagated_risk = local_risk.copy()
 for node in G.nodes():
     neighbors = list(G.neighbors(node))
     if neighbors:
+        max_neighbor_risk = max([local_risk[nbr] for nbr in neighbors])
         avg_neighbor_risk = np.mean([local_risk[nbr] for nbr in neighbors])
-        gnn_propagated_risk[node] = round(local_risk[node] * 0.7 + avg_neighbor_risk * 0.3, 1)
+        
+        # Base message passing formula
+        prop = local_risk[node] * 0.6 + avg_neighbor_risk * 0.4
+        
+        # If any adjacent neighbor shaft is in severe HAZARD (> 45%), boost neighbor risk into WARNING zone
+        if max_neighbor_risk >= 45.0:
+            prop = max(prop, max_neighbor_risk * 0.42 + 10.0) # Ensures > 25% warning score!
+            
+        gnn_propagated_risk[node] = round(float(np.clip(prop, 2.0, 99.0)), 1)
 
 pos = {
     "A": (0, 1),
@@ -357,11 +367,11 @@ for node in G.nodes():
     risk = gnn_propagated_risk[node]
     
     if risk >= 45.0:
-        color = "#f85149" # Red
-    elif risk >= 25.0:
-        color = "#d29922" # Yellow
+        color = "#f85149" # Red (HAZARD)
+    elif risk >= 20.0:
+        color = "#d29922" # Yellow (WARNING)
     else:
-        color = "#2ea043" # Green
+        color = "#2ea043" # Green (SAFE)
         
     node_color.append(color)
     node_text.append(f"<b>Tunnel {node}</b><br>Propagated Risk: {risk}%")
@@ -404,7 +414,7 @@ with col_g_table:
         "Shaft ID": [f"Tunnel {n}" for n in tunnels],
         "Local Risk": [f"{local_risk[n]:.1f}%" for n in tunnels],
         "GNN Propagated Risk": [f"{gnn_propagated_risk[n]:.1f}%" for n in tunnels],
-        "Status": ["HAZARD" if gnn_propagated_risk[n] >= 45 else ("WARNING" if gnn_propagated_risk[n] >= 25 else "SAFE") for n in tunnels]
+        "Status": ["HAZARD" if gnn_propagated_risk[n] >= 45 else ("WARNING" if gnn_propagated_risk[n] >= 20 else "SAFE") for n in tunnels]
     })
     st.dataframe(g_df, use_container_width=True, hide_index=True)
 
