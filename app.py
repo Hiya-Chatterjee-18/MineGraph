@@ -155,386 +155,328 @@ tunnel_id = st.sidebar.selectbox("Active Tunnel Shaft", ["Tunnel A", "Tunnel B",
 tunnel_key = tunnel_id.replace("Tunnel ", "")
 
 # ======================================================
-# MAIN TABS ARCHITECTURE
+# MAIN TELEMETRY INPUTS & STATUS
 # ======================================================
-tab1, tab2, tab3, tab4 = st.tabs([
-    "🚦 Real-Time Sensor Monitor & AI Ensemble",
-    "🕸️ Spatial Tunnel Graph & Risk Propagation",
-    "📈 Time-Series Predictive Forecasting",
-    "📊 Model Architecture & Benchmarks"
-])
+st.markdown("### 📡 Live Multi-Sensor Telemetry")
 
-# ======================================================
-# TAB 1: REAL-TIME SENSOR MONITOR & AI ENSEMBLE
-# ======================================================
-with tab1:
-    st.markdown("### 📡 Live Multi-Sensor Telemetry")
-    
-    col_s1, col_s2, col_s3 = st.columns(3)
-    
-    with col_s1:
-        methane_pct = st.slider("Methane Gas Concentration (%)", 0.0, 5.0, float(def_methane), 0.1, help="Methane above 1.25% requires caution; > 2.0% is explosive risk.")
-        temperature_c = st.slider("Ambient Temperature (°C)", 15.0, 50.0, float(def_temp), 0.5)
-        
-    with col_s2:
-        oxygen_pct = st.slider("Oxygen Level (%)", 10.0, 25.0, float(def_oxy), 0.1, help="Oxygen below 19.5% is hazardous; < 16% causes immediate asphyxiation hazard.")
-        airflow_mps = st.slider("Airflow Velocity (m/s)", 0.0, 6.0, float(def_air), 0.1, help="Airflow below 1.5 m/s indicates stagnant ventilation.")
-        
-    with col_s3:
-        vibration_mm_s = st.slider("Structural Vibration (mm/s)", 0.0, 8.0, float(def_vib), 0.1, help="Vibration above 2.5 mm/s flags potential rockfall/seismic activity.")
-        humidity_pct = st.slider("Relative Humidity (%)", 30.0, 100.0, float(def_hum), 1.0)
+col_s1, col_s2, col_s3 = st.columns(3)
 
-    # DataFrame for inference
-    current_tunnel_data = pd.DataFrame([{
-        "methane_pct": methane_pct,
-        "temperature_c": temperature_c,
-        "humidity_pct": humidity_pct,
-        "airflow_mps": airflow_mps,
-        "vibration_mm_s": vibration_mm_s,
-        "oxygen_pct": oxygen_pct,
-        "methane_avg": methane_pct,
-        "methane_change": round(methane_pct - 0.8, 2),
-        "risk_score": methane_pct * 20
-    }])
-
-    # Run ML Model Pipeline
-    ml_result = combined_ml_safety_decision(current_tunnel_data)
-    ensemble_risk = ml_result["ensemble_risk_score"]
-    model_probs = ml_result["model_wise_probabilities"]
-    model_decisions = ml_result["model_wise_decision"]
-    drivers = ml_result["drivers"]
-
-    # Hard Fail-Safe Rule Overrides
-    hard_risk_trigger = []
-    if oxygen_pct <= 16.0:
-        hard_risk_trigger.append("CRITICAL OXYGEN DEPLETION (≤ 16.0%)")
-    if methane_pct >= 2.0:
-        hard_risk_trigger.append("EXPLOSIVE METHANE CONCENTRATION (≥ 2.0%)")
-    if airflow_mps <= 0.5:
-        hard_risk_trigger.append("COMPLETE VENTILATION FAILURE (≤ 0.5 m/s)")
-    if vibration_mm_s >= 4.5:
-        hard_risk_trigger.append("SEVERE SEISMIC INSTABILITY (≥ 4.5 mm/s)")
-
-    is_unsafe = len(hard_risk_trigger) > 0 or ensemble_risk >= 45.0
+with col_s1:
+    methane_pct = st.slider("Methane Gas Concentration (%)", 0.0, 5.0, float(def_methane), 0.1, help="Methane above 1.25% requires caution; ≥ 2.0% is explosive risk.")
+    temperature_c = st.slider("Ambient Temperature (°C)", 15.0, 50.0, float(def_temp), 0.5)
     
-    st.markdown("---")
+with col_s2:
+    oxygen_pct = st.slider("Oxygen Level (%)", 10.0, 25.0, float(def_oxy), 0.1, help="Oxygen below 19.5% is hazardous; ≤ 16% causes immediate asphyxiation hazard.")
+    airflow_mps = st.slider("Airflow Velocity (m/s)", 0.0, 6.0, float(def_air), 0.1, help="Airflow below 1.5 m/s indicates stagnant ventilation.")
     
-    # --------------------------------------------------
-    # ENSEMBLE RISK SCORE & GAUGE METRIC
-    # --------------------------------------------------
-    st.markdown("### 🎚️ Ensemble Safety Status & Risk Gauge")
-    
-    col_g1, col_g2 = st.columns([1.2, 1])
-    
-    with col_g1:
-        if is_unsafe:
-            st.markdown(f"""
-            <div class="status-card-unsafe">
-                <h2 style="color: #f85149; margin: 0;">❌ UNGUARDED HAZARD DETECTED</h2>
-                <p style="color: #ff7b72; font-size: 1.1rem; margin-top: 8px;">
-                    Ensemble Risk Index: <b>{ensemble_risk:.1f}%</b> | Location: <b>{tunnel_id}</b>
-                </p>
-            </div>
-            """, unsafe_allow_html=True)
-        elif ensemble_risk >= 25.0:
-            st.markdown(f"""
-            <div class="status-card-warning">
-                <h2 style="color: #d29922; margin: 0;">⚠️ WARNING: ELEVATED RISK</h2>
-                <p style="color: #e3b341; font-size: 1.1rem; margin-top: 8px;">
-                    Ensemble Risk Index: <b>{ensemble_risk:.1f}%</b> | Location: <b>{tunnel_id}</b>
-                </p>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown(f"""
-            <div class="status-card-safe">
-                <h2 style="color: #3fb950; margin: 0;">✅ SAFE OPERATING CONDITIONS</h2>
-                <p style="color: #56d364; font-size: 1.1rem; margin-top: 8px;">
-                    Ensemble Risk Index: <b>{ensemble_risk:.1f}%</b> | Location: <b>{tunnel_id}</b>
-                </p>
-            </div>
-            """, unsafe_allow_html=True)
-            
-        if hard_risk_trigger:
-            st.error("🚨 **HARD SAFETY OVERRIDE ACTIVE:** " + " | ".join(hard_risk_trigger))
-            
-        # Key Telemetry Cards
-        st.markdown("<br>", unsafe_allow_html=True)
-        mcol1, mcol2, mcol3 = st.columns(3)
-        mcol1.metric("Methane (CH4)", f"{methane_pct:.2f}%", delta=f"{methane_pct - 0.8:+.1f}%", delta_color="inverse")
-        mcol2.metric("Oxygen (O2)", f"{oxygen_pct:.1f}%", delta=f"{oxygen_pct - 20.9:+.1f}%")
-        mcol3.metric("Airflow", f"{airflow_mps:.1f} m/s", delta=f"{airflow_mps - 2.5:+.1f} m/s")
+with col_s3:
+    vibration_mm_s = st.slider("Structural Vibration (mm/s)", 0.0, 8.0, float(def_vib), 0.1, help="Vibration above 2.5 mm/s flags potential rockfall/seismic activity.")
+    humidity_pct = st.slider("Relative Humidity (%)", 30.0, 100.0, float(def_hum), 1.0)
 
-    with col_g2:
-        # Plotly Gauge Chart
-        fig_gauge = go.Figure(go.Indicator(
-            mode = "gauge+number",
-            value = ensemble_risk,
-            domain = {'x': [0, 1], 'y': [0, 1]},
-            title = {'text': "AI Risk Score (%)", 'font': {'size': 18, 'color': "#c9d1d9"}},
-            number = {'suffix': "%", 'font': {'color': "#f85149" if is_unsafe else "#3fb950"}},
-            gauge = {
-                'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "#30363d"},
-                'bar': {'color': "#f85149" if is_unsafe else ("#d29922" if ensemble_risk >= 25 else "#2ea043")},
-                'bgcolor': "#161b22",
-                'borderwidth': 1,
-                'bordercolor': "#30363d",
-                'steps': [
-                    {'range': [0, 25], 'color': 'rgba(46, 160, 67, 0.2)'},
-                    {'range': [25, 45], 'color': 'rgba(210, 153, 34, 0.2)'},
-                    {'range': [45, 100], 'color': 'rgba(248, 81, 73, 0.2)'}
-                ]
-            }
-        ))
-        fig_gauge.update_layout(height=260, margin=dict(l=20, r=20, t=30, b=20), paper_bgcolor="rgba(0,0,0,0)")
-        st.plotly_chart(fig_gauge, use_container_width=True)
+# DataFrame for inference
+current_tunnel_data = pd.DataFrame([{
+    "methane_pct": methane_pct,
+    "temperature_c": temperature_c,
+    "humidity_pct": humidity_pct,
+    "airflow_mps": airflow_mps,
+    "vibration_mm_s": vibration_mm_s,
+    "oxygen_pct": oxygen_pct,
+    "methane_avg": methane_pct,
+    "methane_change": round(methane_pct - 0.8, 2),
+    "risk_score": methane_pct * 20
+}])
 
-    st.markdown("---")
+# Run ML Model Pipeline
+ml_result = combined_ml_safety_decision(current_tunnel_data)
+ensemble_risk = ml_result["ensemble_risk_score"]
+model_probs = ml_result["model_wise_probabilities"]
+model_decisions = ml_result["model_wise_decision"]
+drivers = ml_result["drivers"]
+hard_triggers = ml_result.get("hard_triggers", [])
 
-    # --------------------------------------------------
-    # MODEL-WISE CONFIDENCE BREAKDOWN
-    # --------------------------------------------------
-    st.markdown("### 🤖 Multi-Model Ensemble Breakdown")
-    m_col1, m_col2, m_col3 = st.columns(3)
-    
-    models_info = [
-        ("Logistic Regression", model_probs["Logistic Regression"], m_col1),
-        ("Random Forest", model_probs["Random Forest"], m_col2),
-        ("SVM (Support Vector Machine)", model_probs["SVM"], m_col3)
-    ]
-    
-    for name, prob, col in models_info:
-        prob_pct = prob * 100
-        with col:
-            st.markdown(f"#### {name}")
-            st.progress(prob)
-            if prob >= 0.50:
-                st.error(f"Risk Probability: **{prob_pct:.1f}%** (Flags Hazard)")
-            elif prob >= 0.25:
-                st.warning(f"Risk Probability: **{prob_pct:.1f}%** (Caution)")
-            else:
-                st.success(f"Risk Probability: **{prob_pct:.1f}%** (Safe)")
+is_unsafe = len(hard_triggers) > 0 or ensemble_risk >= 45.0
 
-    # --------------------------------------------------
-    # AUTOMATED AI INCIDENT RESPONSE PROTOCOLS
-    # --------------------------------------------------
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("### 🛡️ Automated AI Emergency Response Protocols")
-    
+st.markdown("---")
+
+# --------------------------------------------------
+# ENSEMBLE RISK SCORE & GAUGE METRIC
+# --------------------------------------------------
+st.markdown("### 🎚️ Ensemble Safety Status & Risk Gauge")
+
+col_g1, col_g2 = st.columns([1.2, 1])
+
+with col_g1:
     if is_unsafe:
         st.markdown(f"""
-        <div class="protocol-card" style="border-left-color: #f85149;">
-            <h4 style="color: #f85149; margin: 0 0 6px 0;">🚨 PRIORITY 1 EMERGENCY ACTIONS REQUIRED:</h4>
-            <ul style="margin: 0; padding-left: 20px; color: #c9d1d9;">
-                <li><b>Evacuate Shaft Personnel:</b> Sound alarm siren in <b>{tunnel_id}</b> and immediately initiate worker withdrawal to Surface Station 1.</li>
-                <li><b>Activate Auxiliary Ventilation:</b> Force auxiliary exhaust fans in sector <b>{tunnel_id}</b> to 100% capacity to flush airborne gases.</li>
-                <li><b>Electrical Isolation:</b> Trip automated breaker switches for all continuous mining machinery to prevent ignition sparks.</li>
-            </ul>
+        <div class="status-card-unsafe">
+            <h2 style="color: #f85149; margin: 0;">❌ NOT SAFE — HAZARD DETECTED</h2>
+            <p style="color: #ff7b72; font-size: 1.1rem; margin-top: 8px;">
+                Ensemble Risk Index: <b>{ensemble_risk:.1f}%</b> | Location: <b>{tunnel_id}</b>
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+    elif ensemble_risk >= 25.0:
+        st.markdown(f"""
+        <div class="status-card-warning">
+            <h2 style="color: #d29922; margin: 0;">⚠️ WARNING: ELEVATED RISK</h2>
+            <p style="color: #e3b341; font-size: 1.1rem; margin-top: 8px;">
+                Ensemble Risk Index: <b>{ensemble_risk:.1f}%</b> | Location: <b>{tunnel_id}</b>
+            </p>
         </div>
         """, unsafe_allow_html=True)
     else:
-        st.markdown("""
-        <div class="protocol-card" style="border-left-color: #2ea043;">
-            <h4 style="color: #3fb950; margin: 0 0 6px 0;">✅ STANDARD OPERATING PROCEDURE:</h4>
-            <p style="margin: 0; color: #c9d1d9;">All sensor metrics are within permissible regulatory safety limits. Continue standard 15-minute telemetry polling cycles and maintain normal ventilation intake.</p>
+        st.markdown(f"""
+        <div class="status-card-safe">
+            <h2 style="color: #3fb950; margin: 0;">✅ SAFE OPERATING CONDITIONS</h2>
+            <p style="color: #56d364; font-size: 1.1rem; margin-top: 8px;">
+                Ensemble Risk Index: <b>{ensemble_risk:.1f}%</b> | Location: <b>{tunnel_id}</b>
+            </p>
         </div>
         """, unsafe_allow_html=True)
-
-
-# ======================================================
-# TAB 2: SPATIAL TUNNEL GRAPH & RISK PROPAGATION
-# ======================================================
-with tab2:
-    st.markdown("### 🕸️ Underground Tunnel Topological Graph & Airborne Risk Propagation")
-    st.caption("Graph Neural Network (GNN) message passing models how airborne gas concentrations propagate through interconnected air shafts to adjacent mine sectors.")
-
-    # Define Graph Network
-    G = nx.Graph()
-    tunnels = ["A", "B", "C", "D", "E", "F"]
-    edges = [("A", "B"), ("B", "C"), ("C", "D"), ("B", "E"), ("D", "F"), ("E", "F")]
-    G.add_nodes_from(tunnels)
-    G.add_edges_from(edges)
-    
-    # Calculate GNN Risk Propagation Scores
-    local_risk = {"A": 10.0, "B": 15.0, "C": 12.0, "D": 8.0, "E": 9.0, "F": 7.0}
-    # Active selected tunnel inherits live telemetry risk
-    local_risk[tunnel_key] = ensemble_risk
-    
-    # Message passing step
-    gnn_propagated_risk = local_risk.copy()
-    for node in G.nodes():
-        neighbors = list(G.neighbors(node))
-        if neighbors:
-            avg_neighbor_risk = np.mean([local_risk[nbr] for nbr in neighbors])
-            gnn_propagated_risk[node] = round(local_risk[node] * 0.7 + avg_neighbor_risk * 0.3, 1)
-
-    # Spring layout positions
-    pos = {
-        "A": (0, 1),
-        "B": (1, 1),
-        "C": (2, 1),
-        "D": (2, 0),
-        "E": (1, 0),
-        "F": (0, 0)
-    }
-
-    # Plotly Graph Nodes and Edges
-    edge_x = []
-    edge_y = []
-    for edge in G.edges():
-        x0, y0 = pos[edge[0]]
-        x1, y1 = pos[edge[1]]
-        edge_x.extend([x0, x1, None])
-        edge_y.extend([y0, y1, None])
-
-    edge_trace = go.Scatter(
-        x=edge_x, y=edge_y,
-        line=dict(width=3, color='#484f58'),
-        hoverinfo='none',
-        mode='lines'
-    )
-
-    node_x = []
-    node_y = []
-    node_color = []
-    node_text = []
-    node_size = []
-
-    for node in G.nodes():
-        x, y = pos[node]
-        node_x.append(x)
-        node_y.append(y)
-        risk = gnn_propagated_risk[node]
         
-        # Color coding
-        if risk >= 45.0:
-            color = "#f85149" # Red
-        elif risk >= 25.0:
-            color = "#d29922" # Yellow
+    if hard_triggers:
+        st.error("🚨 **CRITICAL SAFETY OVERRIDE TRIGGERED:** " + " | ".join(hard_triggers))
+        
+    # Key Telemetry Cards
+    st.markdown("<br>", unsafe_allow_html=True)
+    mcol1, mcol2, mcol3 = st.columns(3)
+    mcol1.metric("Methane (CH4)", f"{methane_pct:.2f}%", delta=f"{methane_pct - 0.8:+.1f}%", delta_color="inverse")
+    mcol2.metric("Oxygen (O2)", f"{oxygen_pct:.1f}%", delta=f"{oxygen_pct - 20.9:+.1f}%")
+    mcol3.metric("Airflow", f"{airflow_mps:.1f} m/s", delta=f"{airflow_mps - 2.5:+.1f} m/s")
+
+with col_g2:
+    # Plotly Gauge Chart
+    fig_gauge = go.Figure(go.Indicator(
+        mode = "gauge+number",
+        value = ensemble_risk,
+        domain = {'x': [0, 1], 'y': [0, 1]},
+        title = {'text': "AI Risk Score (%)", 'font': {'size': 18, 'color': "#c9d1d9"}},
+        number = {'suffix': "%", 'font': {'color': "#f85149" if is_unsafe else "#3fb950"}},
+        gauge = {
+            'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "#30363d"},
+            'bar': {'color': "#f85149" if is_unsafe else ("#d29922" if ensemble_risk >= 25 else "#2ea043")},
+            'bgcolor': "#161b22",
+            'borderwidth': 1,
+            'bordercolor': "#30363d",
+            'steps': [
+                {'range': [0, 25], 'color': 'rgba(46, 160, 67, 0.2)'},
+                {'range': [25, 45], 'color': 'rgba(210, 153, 34, 0.2)'},
+                {'range': [45, 100], 'color': 'rgba(248, 81, 73, 0.2)'}
+            ]
+        }
+    ))
+    fig_gauge.update_layout(height=260, margin=dict(l=20, r=20, t=30, b=20), paper_bgcolor="rgba(0,0,0,0)")
+    st.plotly_chart(fig_gauge, use_container_width=True)
+
+st.markdown("---")
+
+# --------------------------------------------------
+# MODEL-WISE CONFIDENCE BREAKDOWN
+# --------------------------------------------------
+st.markdown("### 🤖 Multi-Model Ensemble Breakdown")
+m_col1, m_col2, m_col3 = st.columns(3)
+
+models_info = [
+    ("Logistic Regression", model_probs["Logistic Regression"], m_col1),
+    ("Random Forest", model_probs["Random Forest"], m_col2),
+    ("SVM (Support Vector Machine)", model_probs["SVM"], m_col3)
+]
+
+for name, prob, col in models_info:
+    prob_pct = prob * 100
+    with col:
+        st.markdown(f"#### {name}")
+        st.progress(prob)
+        if prob >= 0.45:
+            st.error(f"Risk Probability: **{prob_pct:.1f}%** (Flags Hazard)")
+        elif prob >= 0.25:
+            st.warning(f"Risk Probability: **{prob_pct:.1f}%** (Caution)")
         else:
-            color = "#2ea043" # Green
-            
-        node_color.append(color)
-        node_text.append(f"<b>Tunnel {node}</b><br>Propagated Risk: {risk}%")
-        node_size.append(35 + (risk * 0.3))
+            st.success(f"Risk Probability: **{prob_pct:.1f}%** (Safe)")
 
-    node_trace = go.Scatter(
-        x=node_x, y=node_y,
-        mode='markers+text',
-        hoverinfo='text',
-        text=[f"Tunnel {n}" for n in G.nodes()],
-        textposition="top center",
-        textfont=dict(color="#c9d1d9", size=14),
-        hovertext=node_text,
-        marker=dict(
-            color=node_color,
-            size=node_size,
-            line=dict(width=2, color='#ffffff')
-        )
-    )
-
-    fig_graph = go.Figure(data=[edge_trace, node_trace])
-    fig_graph.update_layout(
-        showlegend=False,
-        hovermode='closest',
-        margin=dict(b=20, l=20, r=20, t=40),
-        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)"
-    )
-
-    col_g_view, col_g_table = st.columns([1.5, 1])
-    
-    with col_g_view:
-        st.plotly_chart(fig_graph, use_container_width=True)
-
-    with col_g_table:
-        st.markdown("#### 📊 Sector Risk Propagation Output")
-        g_df = pd.DataFrame({
-            "Shaft ID": [f"Tunnel {n}" for n in tunnels],
-            "Local Telemetry Risk": [f"{local_risk[n]:.1f}%" for n in tunnels],
-            "GNN Propagated Risk": [f"{gnn_propagated_risk[n]:.1f}%" for n in tunnels],
-            "Status": ["HAZARD" if gnn_propagated_risk[n] >= 45 else ("WARNING" if gnn_propagated_risk[n] >= 25 else "SAFE") for n in tunnels]
-        })
-        st.dataframe(g_df, use_container_width=True, hide_index=True)
-
+st.markdown("---")
 
 # ======================================================
-# TAB 3: TIME-SERIES PREDICTIVE FORECASTING
+# SECTION: GNN SPATIAL TUNNEL GRAPH RISK PROPAGATION
 # ======================================================
-with tab3:
-    st.markdown("### 📈 LSTM Methane Concentration Forecast (Next 60 Minutes)")
-    st.caption("Deep Learning LSTM sequence model predicts future sensor trends based on rolling 15-minute telemetry intervals.")
+st.markdown("### 🕸️ Graph Neural Network (GNN) Spatial Risk Propagation")
+st.caption("Models airborne gas and risk propagation through interconnected mine shafts to adjacent tunnels.")
 
-    timestamps = pd.date_range(end=pd.Timestamp.now(), periods=10, freq="5min")
-    future_timestamps = pd.date_range(start=timestamps[-1], periods=7, freq="10min")[1:]
+# Define Graph Network
+G = nx.Graph()
+tunnels = ["A", "B", "C", "D", "E", "F"]
+edges = [("A", "B"), ("B", "C"), ("C", "D"), ("B", "E"), ("D", "F"), ("E", "F")]
+G.add_nodes_from(tunnels)
+G.add_edges_from(edges)
 
-    # Base historical curve
-    hist_methane = [max(0.4, methane_pct + np.random.normal(0, 0.08)) for _ in range(9)] + [methane_pct]
+# Calculate GNN Risk Propagation Scores
+local_risk = {"A": 10.0, "B": 15.0, "C": 12.0, "D": 8.0, "E": 9.0, "F": 7.0}
+local_risk[tunnel_key] = ensemble_risk
+
+gnn_propagated_risk = local_risk.copy()
+for node in G.nodes():
+    neighbors = list(G.neighbors(node))
+    if neighbors:
+        avg_neighbor_risk = np.mean([local_risk[nbr] for nbr in neighbors])
+        gnn_propagated_risk[node] = round(local_risk[node] * 0.7 + avg_neighbor_risk * 0.3, 1)
+
+pos = {
+    "A": (0, 1),
+    "B": (1, 1),
+    "C": (2, 1),
+    "D": (2, 0),
+    "E": (1, 0),
+    "F": (0, 0)
+}
+
+edge_x = []
+edge_y = []
+for edge in G.edges():
+    x0, y0 = pos[edge[0]]
+    x1, y1 = pos[edge[1]]
+    edge_x.extend([x0, x1, None])
+    edge_y.extend([y0, y1, None])
+
+edge_trace = go.Scatter(
+    x=edge_x, y=edge_y,
+    line=dict(width=3, color='#484f58'),
+    hoverinfo='none',
+    mode='lines'
+)
+
+node_x = []
+node_y = []
+node_color = []
+node_text = []
+node_size = []
+
+for node in G.nodes():
+    x, y = pos[node]
+    node_x.append(x)
+    node_y.append(y)
+    risk = gnn_propagated_risk[node]
     
-    # Projected future trend
-    if methane_pct > 1.5:
-        fut_trend = [methane_pct + (i * 0.15) for i in range(1, 7)]
+    if risk >= 45.0:
+        color = "#f85149" # Red
+    elif risk >= 25.0:
+        color = "#d29922" # Yellow
     else:
-        fut_trend = [max(0.5, methane_pct + np.sin(i) * 0.1) for i in range(1, 7)]
+        color = "#2ea043" # Green
+        
+    node_color.append(color)
+    node_text.append(f"<b>Tunnel {node}</b><br>Propagated Risk: {risk}%")
+    node_size.append(35 + (risk * 0.3))
 
-    df_hist = pd.DataFrame({"Timestamp": timestamps, "Methane (%)": hist_methane, "Type": "Historical Measured"})
-    df_fut = pd.DataFrame({"Timestamp": future_timestamps, "Methane (%)": fut_trend, "Type": "LSTM Forecast (60 min)"})
-    
-    df_combined = pd.concat([df_hist, df_fut], ignore_index=True)
-
-    fig_ts = px.line(
-        df_combined, 
-        x="Timestamp", 
-        y="Methane (%)", 
-        color="Type",
-        markers=True,
-        color_discrete_map={"Historical Measured": "#58a6ff", "LSTM Forecast (60 min)": "#f85149" if methane_pct > 1.5 else "#2ea043"}
+node_trace = go.Scatter(
+    x=node_x, y=node_y,
+    mode='markers+text',
+    hoverinfo='text',
+    text=[f"Tunnel {n}" for n in G.nodes()],
+    textposition="top center",
+    textfont=dict(color="#c9d1d9", size=14),
+    hovertext=node_text,
+    marker=dict(
+        color=node_color,
+        size=node_size,
+        line=dict(width=2, color='#ffffff')
     )
-    
-    # Add Threshold Line
-    fig_ts.add_hline(y=2.0, line_dash="dash", line_color="#f85149", annotation_text="Explosive Threshold (2.0%)")
-    fig_ts.add_hline(y=1.25, line_dash="dot", line_color="#d29922", annotation_text="Caution Threshold (1.25%)")
+)
 
-    fig_ts.update_layout(
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(color="#c9d1d9")
-    )
-    
-    st.plotly_chart(fig_ts, use_container_width=True)
+fig_graph = go.Figure(data=[edge_trace, node_trace])
+fig_graph.update_layout(
+    showlegend=False,
+    hovermode='closest',
+    margin=dict(b=20, l=20, r=20, t=30),
+    xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+    yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)"
+)
 
+col_g_view, col_g_table = st.columns([1.4, 1])
+
+with col_g_view:
+    st.plotly_chart(fig_graph, use_container_width=True)
+
+with col_g_table:
+    st.markdown("#### 📊 Sector Risk Propagation Output Table")
+    g_df = pd.DataFrame({
+        "Shaft ID": [f"Tunnel {n}" for n in tunnels],
+        "Local Risk": [f"{local_risk[n]:.1f}%" for n in tunnels],
+        "GNN Propagated Risk": [f"{gnn_propagated_risk[n]:.1f}%" for n in tunnels],
+        "Status": ["HAZARD" if gnn_propagated_risk[n] >= 45 else ("WARNING" if gnn_propagated_risk[n] >= 25 else "SAFE") for n in tunnels]
+    })
+    st.dataframe(g_df, use_container_width=True, hide_index=True)
+
+st.markdown("---")
 
 # ======================================================
-# TAB 4: MODEL ARCHITECTURE & BENCHMARKS
+# SECTION: LSTM METHANE PREDICTIVE FORECASTING
 # ======================================================
-with tab4:
-    st.markdown("### 📊 MineGraph AI Architecture & Performance Benchmarks")
-    
-    col_b1, col_b2 = st.columns(2)
-    
-    with col_b1:
-        st.markdown("#### 🏆 Classification Model Benchmarks")
-        benchmarks = pd.DataFrame({
-            "Model Architecture": ["Logistic Regression", "Random Forest", "Support Vector Machine (SVM)", "GNN Risk Propagation"],
-            "Accuracy": ["92.5%", "97.8%", "94.2%", "96.1%"],
-            "Precision": ["91.0%", "98.1%", "93.5%", "95.5%"],
-            "Recall": ["93.2%", "97.4%", "94.8%", "96.8%"],
-            "F1-Score": ["92.1%", "97.7%", "94.1%", "96.1%"]
-        })
-        st.dataframe(benchmarks, use_container_width=True, hide_index=True)
+st.markdown("### 📈 LSTM Time-Series Methane Forecast (Next 60 Minutes)")
+st.caption("Deep Learning LSTM sequence model predicts future sensor trends based on rolling telemetry intervals.")
 
-    with col_b2:
-        st.markdown("#### 🛠️ Sensor Feature Weight Matrix")
-        feat_df = pd.DataFrame({
-            "Sensor Feature": ["Methane (CH4)", "Oxygen (O2)", "Airflow Velocity", "Structural Vibration", "Temperature"],
-            "Feature Importance": [0.38, 0.27, 0.18, 0.11, 0.06]
-        })
-        fig_feat = px.bar(feat_df, x="Feature Importance", y="Sensor Feature", orientation='h', color="Feature Importance", color_continuous_scale="Blues")
-        fig_feat.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font=dict(color="#c9d1d9"))
-        st.plotly_chart(fig_feat, use_container_width=True)
+timestamps = pd.date_range(end=pd.Timestamp.now(), periods=10, freq="5min")
+future_timestamps = pd.date_range(start=timestamps[-1], periods=7, freq="10min")[1:]
 
+# Base historical curve
+hist_methane = [max(0.4, methane_pct + np.random.normal(0, 0.08)) for _ in range(9)] + [methane_pct]
+
+# Projected future trend
+if methane_pct > 1.5:
+    fut_trend = [methane_pct + (i * 0.15) for i in range(1, 7)]
+else:
+    fut_trend = [max(0.5, methane_pct + np.sin(i) * 0.1) for i in range(1, 7)]
+
+df_hist = pd.DataFrame({"Timestamp": timestamps, "Methane (%)": hist_methane, "Type": "Historical Measured"})
+df_fut = pd.DataFrame({"Timestamp": future_timestamps, "Methane (%)": fut_trend, "Type": "LSTM Forecast (60 min)"})
+
+df_combined = pd.concat([df_hist, df_fut], ignore_index=True)
+
+fig_ts = px.line(
+    df_combined, 
+    x="Timestamp", 
+    y="Methane (%)", 
+    color="Type",
+    markers=True,
+    color_discrete_map={"Historical Measured": "#58a6ff", "LSTM Forecast (60 min)": "#f85149" if methane_pct > 1.5 else "#2ea043"}
+)
+
+fig_ts.add_hline(y=2.0, line_dash="dash", line_color="#f85149", annotation_text="Explosive Threshold (2.0%)")
+fig_ts.add_hline(y=1.25, line_dash="dot", line_color="#d29922", annotation_text="Caution Threshold (1.25%)")
+
+fig_ts.update_layout(
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
+    font=dict(color="#c9d1d9")
+)
+
+st.plotly_chart(fig_ts, use_container_width=True)
+
+# --------------------------------------------------
+# AUTOMATED AI INCIDENT RESPONSE PROTOCOLS
+# --------------------------------------------------
+st.markdown("---")
+st.markdown("### 🛡️ Automated AI Emergency Response Protocols")
+
+if is_unsafe:
+    st.markdown(f"""
+    <div class="protocol-card" style="border-left-color: #f85149;">
+        <h4 style="color: #f85149; margin: 0 0 6px 0;">🚨 PRIORITY 1 EMERGENCY ACTIONS REQUIRED:</h4>
+        <ul style="margin: 0; padding-left: 20px; color: #c9d1d9;">
+            <li><b>Evacuate Shaft Personnel:</b> Sound alarm siren in <b>{tunnel_id}</b> and immediately initiate worker withdrawal to Surface Station 1.</li>
+            <li><b>Activate Auxiliary Ventilation:</b> Force auxiliary exhaust fans in sector <b>{tunnel_id}</b> to 100% capacity to flush airborne gases.</li>
+            <li><b>Electrical Isolation:</b> Trip automated breaker switches for all continuous mining machinery to prevent ignition sparks.</li>
+        </ul>
+    </div>
+    """, unsafe_allow_html=True)
+else:
+    st.markdown("""
+    <div class="protocol-card" style="border-left-color: #2ea043;">
+        <h4 style="color: #3fb950; margin: 0 0 6px 0;">✅ STANDARD OPERATING PROCEDURE:</h4>
+        <p style="margin: 0; color: #c9d1d9;">All sensor metrics are within permissible regulatory safety limits. Continue standard 15-minute telemetry polling cycles and maintain normal ventilation intake.</p>
+    </div>
+    """, unsafe_allow_html=True)
 
 # ======================================================
 # MINER DEDICATION TRIBUTE
