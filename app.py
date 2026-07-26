@@ -297,10 +297,10 @@ for name, prob, col in models_info:
 st.markdown("---")
 
 # ======================================================
-# SECTION: GNN SPATIAL TUNNEL GRAPH RISK PROPAGATION
+# SECTION: GNN MULTI-HOP SPATIAL RISK PROPAGATION
 # ======================================================
 st.markdown("### 🕸️ Graph Neural Network (GNN) Spatial Risk Propagation")
-st.caption("Models airborne gas and risk propagation through interconnected mine shafts to adjacent tunnels.")
+st.caption("2-Hop Graph Convolution Message Passing models how airborne gas and seismic risks diffuse from active shafts to adjacent tunnels B, C, D, E, F.")
 
 # Define Graph Network
 G = nx.Graph()
@@ -313,22 +313,34 @@ G.add_edges_from(edges)
 local_risk = {"A": 10.0, "B": 15.0, "C": 12.0, "D": 8.0, "E": 9.0, "F": 7.0}
 local_risk[tunnel_key] = ensemble_risk
 
-# GNN Message Passing with neighbor hazard spillover
-gnn_propagated_risk = local_risk.copy()
+# 2-Hop Graph Convolutional Risk Diffusion Algorithm
+# Hop 1: Direct neighbors absorb airborne risk
+hop1_risk = local_risk.copy()
 for node in G.nodes():
     neighbors = list(G.neighbors(node))
     if neighbors:
-        max_neighbor_risk = max([local_risk[nbr] for nbr in neighbors])
-        avg_neighbor_risk = np.mean([local_risk[nbr] for nbr in neighbors])
+        max_nbr = max([local_risk[nbr] for nbr in neighbors])
+        avg_nbr = np.mean([local_risk[nbr] for nbr in neighbors])
         
-        # Base message passing formula
-        prop = local_risk[node] * 0.6 + avg_neighbor_risk * 0.4
+        # 1st-hop risk blending
+        res = local_risk[node] * 0.55 + avg_nbr * 0.45
+        if max_nbr >= 30.0:
+            res = max(res, max_nbr * 0.55 + 5.0) # 1st hop spillover boost
+        hop1_risk[node] = res
+
+# Hop 2: 2nd-hop neighbors (e.g. Tunnel C from Tunnel B) absorb secondary diffusion
+gnn_propagated_risk = hop1_risk.copy()
+for node in G.nodes():
+    neighbors = list(G.neighbors(node))
+    if neighbors:
+        max_hop1_nbr = max([hop1_risk[nbr] for nbr in neighbors])
+        avg_hop1_nbr = np.mean([hop1_risk[nbr] for nbr in neighbors])
         
-        # If any adjacent neighbor shaft is in severe HAZARD (> 45%), boost neighbor risk into WARNING zone
-        if max_neighbor_risk >= 45.0:
-            prop = max(prop, max_neighbor_risk * 0.42 + 10.0) # Ensures > 25% warning score!
+        res2 = hop1_risk[node] * 0.7 + avg_hop1_nbr * 0.3
+        if max_hop1_nbr >= 25.0:
+            res2 = max(res2, max_hop1_nbr * 0.55) # 2nd hop spillover boost into Warning zone!
             
-        gnn_propagated_risk[node] = round(float(np.clip(prop, 2.0, 99.0)), 1)
+        gnn_propagated_risk[node] = round(float(np.clip(res2, 2.0, 99.0)), 1)
 
 pos = {
     "A": (0, 1),
